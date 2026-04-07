@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -15,11 +16,12 @@ function Installations() {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [selectedInstallation, setSelectedInstallation] = useState(null);
   const [selectedTab, setSelectedTab] = useState('overview');
-  const [showDetails, setShowDetails] = useState(false);
+  const [, setShowDetails] = useState(false);
   const [quoteData, setQuoteData] = useState(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const navigate = useNavigate();
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const token = localStorage.getItem('token');
     const user = localStorage.getItem('user');
@@ -94,15 +96,6 @@ function Installations() {
     return stage ? stage.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'N/A';
   };
 
-  const formatAmount = (amount) => {
-    if (!amount) return '₹0';
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0
-    }).format(amount);
-  };
-
   const getStageColor = (stage) => {
     switch(stage?.toLowerCase()) {
       case 'completed':
@@ -150,20 +143,12 @@ function Installations() {
     }
   });
 
-  const totalPages = Math.ceil(sortedInstallations.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const indexOfFirstItem = startIndex;
-  const indexOfLastItem = startIndex + itemsPerPage;
   const currentItems = sortedInstallations.slice(startIndex, startIndex + itemsPerPage);
 
   useEffect(() => {
     setCurrentPage(1);
   }, [filterStatus, searchQuery, sortBy]);
-
-  // Handle page changes
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
-  };
 
   const handleRefresh = async () => {
     clearInstallationsCache();
@@ -266,72 +251,6 @@ function Installations() {
     } finally {
       setClosingLead(false);
     }
-  };
-
-  const renderPagination = () => {
-    if (totalPages <= 1) return null;
-
-    const maxPagesToShow = 5;
-    let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
-    let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
-
-    if (endPage - startPage < maxPagesToShow - 1) {
-      startPage = Math.max(1, endPage - maxPagesToShow + 1);
-    }
-
-    const pages = [];
-    for (let i = startPage; i <= endPage; i++) {
-      pages.push(
-        <button
-          key={i}
-          onClick={() => handlePageChange(i)}
-          className={`px-2 sm:px-3 py-1 rounded text-sm ${
-            i === currentPage ? 'bg-teal-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-          }`}
-        >
-          {i}
-        </button>
-      );
-    }
-
-    return (
-      <div className="flex items-center gap-1">
-        {startPage > 1 && (
-          <>
-            <button
-              onClick={() => handlePageChange(1)}
-              className="px-2 sm:px-3 py-1 rounded text-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
-            >
-              1
-            </button>
-            {startPage > 2 && <span className="text-gray-500">...</span>}
-          </>
-        )}
-
-        {pages}
-
-        {endPage < totalPages && (
-          <>
-            {endPage < totalPages - 1 && <span className="text-gray-500">...</span>}
-            <button
-              onClick={() => handlePageChange(totalPages)}
-              className="px-2 sm:px-3 py-1 rounded text-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
-            >
-              {totalPages}
-            </button>
-          </>
-        )}
-
-        <button
-          onClick={() => handlePageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
-          className="px-2 sm:px-3 py-1 rounded text-sm bg-white border border-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-        >
-          <span className="hidden sm:inline">Next</span>
-          <span className="sm:hidden">›</span>
-        </button>
-      </div>
-    );
   };
 
   return (

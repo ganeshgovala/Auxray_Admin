@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Sidebar from './Sidebar';
 import { getCachedTeamMembersData, setCachedTeamMembersData, clearTeamMembersCache } from '../utils/cacheManager';
-import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../utils/apiConfig';
+import { buildApiUrl, API_ENDPOINTS } from '../utils/apiConfig';
 
 const TeamMembers = () => {
   const [user, setUser] = useState(null);

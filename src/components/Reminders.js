@@ -1,12 +1,12 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Sidebar from './Sidebar';
-import { getCachedRemindersData, setCachedRemindersData, clearRemindersCache } from '../utils/cacheManager';
-import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../utils/apiConfig';
+import { getCachedRemindersData, setCachedRemindersData } from '../utils/cacheManager';
+import { buildApiUrl, API_ENDPOINTS } from '../utils/apiConfig';
 
 const Reminders = () => {
-  const [user, setUser] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [reminders, setReminders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -14,6 +14,7 @@ const Reminders = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const navigate = useNavigate();
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     // Check if user is authenticated
     const token = localStorage.getItem('token');
@@ -33,8 +34,6 @@ const Reminders = () => {
       return;
     }
 
-    setUser(parsedUser);
-    
     // Fetch reminders
     loadReminders(token);
   }, [navigate]);

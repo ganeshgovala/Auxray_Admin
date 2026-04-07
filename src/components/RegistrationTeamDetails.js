@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../utils/apiConfig';
+import { buildApiUrl, API_ENDPOINTS } from '../utils/apiConfig';
 
 function formatDate(dateString) {
   if (!dateString) return 'N/A';

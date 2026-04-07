@@ -1,9 +1,10 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Sidebar from './Sidebar';
 import { getCachedInventoryData, setCachedInventoryData, clearInventoryCache } from '../utils/cacheManager';
-import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../utils/apiConfig';
+import { buildApiUrl, API_ENDPOINTS } from '../utils/apiConfig';
 
 const Inventory = () => {
   const [user, setUser] = useState(null);
@@ -29,6 +30,7 @@ const Inventory = () => {
   const [deleting, setDeleting] = useState(false);
   const navigate = useNavigate();
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     // Check if user is authenticated
     const token = localStorage.getItem('token');

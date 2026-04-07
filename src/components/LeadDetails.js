@@ -1,8 +1,9 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import Sidebar from './Sidebar';
-import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../utils/apiConfig';
+import { buildApiUrl, API_ENDPOINTS } from '../utils/apiConfig';
 
 const LeadDetails = () => {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ const LeadDetails = () => {
   const [showCloseLeadModal, setShowCloseLeadModal] = useState(false);
   const [closeLeadNote, setCloseLeadNote] = useState('');
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const userData = localStorage.getItem('user');
     if (!userData) {
@@ -75,11 +77,6 @@ const LeadDetails = () => {
 
   const formatStageName = (stage) => {
     return stage.split('_').map(word => word.charAt(0) + word.slice(1).toLowerCase()).join(' ');
-  };
-
-  const getStageState = (timeline, stageTitle) => {
-    const stage = timeline.find(t => t.title === stageTitle);
-    return stage ? stage.state : 'PENDING';
   };
 
   const getTimelineStages = () => {

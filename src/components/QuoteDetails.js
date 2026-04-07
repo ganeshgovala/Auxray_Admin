@@ -1,9 +1,10 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import Sidebar from './Sidebar';
 import { clearDashboardCache, clearQuotesCache } from '../utils/cacheManager';
-import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../utils/apiConfig';
+import { buildApiUrl, API_ENDPOINTS } from '../utils/apiConfig';
 
 const QuoteDetails = () => {
   const navigate = useNavigate();
@@ -17,6 +18,7 @@ const QuoteDetails = () => {
   const [modifyNotes, setModifyNotes] = useState('');
   const [processing, setProcessing] = useState(false);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const userData = localStorage.getItem('user');
     if (!userData) {

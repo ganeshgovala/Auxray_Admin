@@ -1,9 +1,10 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Sidebar from './Sidebar';
 import { getCachedDashboardData, setCachedDashboardData, clearDashboardCache } from '../utils/cacheManager';
-import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../utils/apiConfig';
+import { buildApiUrl, API_ENDPOINTS } from '../utils/apiConfig';
 
 const Dashboard = () => {
   const [user, setUser] = useState(null);
@@ -15,6 +16,8 @@ const Dashboard = () => {
   const [teamMembers, setTeamMembers] = useState([]);
   const navigate = useNavigate();
 
+  // Initial auth + dashboard bootstrap on mount.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     // Check if user is authenticated
     const token = localStorage.getItem('token');

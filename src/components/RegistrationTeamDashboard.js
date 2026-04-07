@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import logo from '../assets/images/logo.png';
-import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../utils/apiConfig';
+import { buildApiUrl, API_ENDPOINTS } from '../utils/apiConfig';
 
 const RegistrationTeamDashboard = () => {
   const navigate = useNavigate();
@@ -20,20 +20,6 @@ const RegistrationTeamDashboard = () => {
   });
   const [selectedRegistration, setSelectedRegistration] = useState(null);
   const [selectedRegistrationTab, setSelectedRegistrationTab] = useState('overview');
-
-  // Handler to update status in local state
-  const handleStatusChange = (absoluteIndex, newStatus) => {
-    setRegistrations(prevRegs => {
-      const updated = [...prevRegs];
-      if (updated[absoluteIndex]) {
-        updated[absoluteIndex] = {
-          ...updated[absoluteIndex],
-          status: newStatus
-        };
-      }
-      return updated;
-    });
-  };
 
   // Update status via PATCH API
   const handleUpdateStatus = async (item, absoluteIndex) => {
@@ -151,15 +137,6 @@ const RegistrationTeamDashboard = () => {
     return 'pending';
   };
 
-  const getStatusColor = (status) => {
-    switch(status) {
-      case 'ACTIVE': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      case 'COMPLETED': return 'bg-green-100 text-green-800 border-green-300';
-      case 'PENDING': return 'bg-gray-100 text-gray-800 border-gray-300';
-      default: return 'bg-gray-100 text-gray-800 border-gray-300';
-    }
-  };
-
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -185,7 +162,6 @@ const RegistrationTeamDashboard = () => {
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredRegistrations.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredRegistrations.length / itemsPerPage);
 
   if (!user) {
     return (
