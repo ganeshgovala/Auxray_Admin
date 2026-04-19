@@ -1,5 +1,5 @@
 // API Configuration
-export const API_BASE_URL = 'http://13.233.124.12:5000';
+export const API_BASE_URL = process.env.REACT_APP_API_BASE || '/api';
 
 // API endpoints
 export const API_ENDPOINTS = {
@@ -39,7 +39,15 @@ export const API_ENDPOINTS = {
 
 // Helper function to build complete API URL
 export const buildApiUrl = (endpoint) => {
-  return `${API_BASE_URL}${endpoint}`;
+  const normalizedBase = API_BASE_URL.replace(/\/+$/, '');
+  let normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+
+  // Avoid generating /api/api/... when both base and endpoint include /api.
+  if (normalizedBase.endsWith('/api') && normalizedEndpoint.startsWith('/api/')) {
+    normalizedEndpoint = normalizedEndpoint.slice(4);
+  }
+
+  return `${normalizedBase}${normalizedEndpoint}`;
 };
 
 // Common axios configuration

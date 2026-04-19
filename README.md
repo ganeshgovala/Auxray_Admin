@@ -27,6 +27,72 @@ Launches the test runner in interactive watch mode.
 #### `npm run build`
 Builds the app for production to the `build` folder.
 
+#### `npm run start:proxy`
+Runs the Express BFF proxy server that serves the built frontend and proxies `/api/*` requests to the backend.
+
+#### `npm run serve`
+Builds the frontend and starts the BFF proxy server.
+
+## API Proxy (BFF) Setup
+
+This project includes a proxy layer so browsers only call same-origin routes:
+
+Frontend -> `/api/*` -> BFF proxy -> HTTP backend (`BACKEND_URL`)
+
+### Folder Structure
+
+```
+auxray_admin/
+├── server.js                 # BFF proxy + static frontend server
+├── .env.example              # Environment variable template
+└── src/
+		└── utils/
+				└── apiConfig.js      # Frontend API base (/api)
+```
+
+### Environment Variables
+
+Create `.env` from `.env.example` and set:
+
+```bash
+BACKEND_URL=http://localhost:5000
+BACKEND_PATH_PREFIX=/api
+PORT=3000
+REACT_APP_API_BASE=/api
+```
+
+Notes:
+- Default proxy behavior rewrites `/api/users` -> `/api/users` on backend.
+- If your backend routes do not include `/api`, set `BACKEND_PATH_PREFIX=`.
+
+### Example Frontend Usage
+
+```js
+import { buildApiUrl } from '../utils/apiConfig';
+
+const res = await fetch(buildApiUrl('/users'), {
+	method: 'GET',
+	credentials: 'include',
+	headers: {
+		Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+	},
+});
+
+if (!res.ok) {
+	throw new Error(`Request failed: ${res.status}`);
+}
+
+const data = await res.json();
+```
+
+### What the Proxy Handles
+
+- Methods: GET, POST, PUT, DELETE (and other HTTP methods)
+- Forwarding: headers, auth headers, cookies, query params, and request body
+- Response passthrough: backend status and body are returned as-is
+- Errors: network failures return `502 Bad Gateway`
+- Logging: request/response/error logs are printed in server console
+
 ## Project Structure
 
 ```

@@ -4,6 +4,9 @@
   "private": true,
   "dependencies": {
     "axios": "^1.13.5",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "http-proxy-middleware": "^3.0.5",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.13.0",
@@ -12,6 +15,9 @@
   },
   "scripts": {
     "start": "react-scripts start",
+    "start:proxy": "node server.js",
+    "build:proxy": "react-scripts build",
+    "serve": "npm run build:proxy && node server.js",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
