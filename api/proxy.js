@@ -16,6 +16,16 @@ function normalizePrefix(prefix) {
   return `/${String(prefix).replace(/^\/+|\/+$/g, '')}`;
 }
 
+function normalizePathParam(pathParam) {
+  if (Array.isArray(pathParam)) {
+    return pathParam.join('/').replace(/^\/+|\/+$/g, '');
+  }
+  if (typeof pathParam === 'string') {
+    return pathParam.replace(/^\/+|\/+$/g, '');
+  }
+  return '';
+}
+
 async function readRawBody(req) {
   const chunks = [];
   for await (const chunk of req) {
@@ -27,17 +37,26 @@ async function readRawBody(req) {
 function buildTargetUrl(req) {
   const backendUrl = (process.env.BACKEND_URL || '').replace(/\/+$/, '');
   const backendPrefix = normalizePrefix(process.env.BACKEND_PATH_PREFIX || '/api');
-  const pathParts = Array.isArray(req.query.path)
-    ? req.query.path
-    : req.query.path
-      ? [req.query.path]
-      : [];
+  const path = normalizePathParam(req.query.path);
 
-  const pathname = `/${pathParts.join('/')}`;
-  const queryIndex = req.url.indexOf('?');
-  const queryString = queryIndex >= 0 ? req.url.slice(queryIndex) : '';
+  const searchParams = new URLSearchParams();
+  Object.entries(req.query || {}).forEach(([key, value]) => {
+    if (key === 'path') return;
 
-  return `${backendUrl}${backendPrefix}${pathname}${queryString}`;
+    if (Array.isArray(value)) {
+      value.forEach((item) => searchParams.append(key, String(item)));
+      return;
+    }
+
+    if (value != null) {
+      searchParams.append(key, String(value));
+    }
+  });
+
+  const queryString = searchParams.toString();
+  const pathname = path ? `/${path}` : '';
+
+  return `${backendUrl}${backendPrefix}${pathname}${queryString ? `?${queryString}` : ''}`;
 }
 
 module.exports = async (req, res) => {
@@ -49,13 +68,12 @@ module.exports = async (req, res) => {
     });
   }
 
-  const targetUrl = buildTargetUrl(req);
   const method = req.method.toUpperCase();
+  const targetUrl = buildTargetUrl(req);
 
   const headers = {};
   for (const [key, value] of Object.entries(req.headers || {})) {
-    const normalized = key.toLowerCase();
-    if (HOP_BY_HOP_HEADERS.has(normalized)) continue;
+    if (HOP_BY_HOP_HEADERS.has(key.toLowerCase())) continue;
     headers[key] = value;
   }
 
@@ -84,6 +102,7 @@ module.exports = async (req, res) => {
     });
 
     res.status(upstream.status);
+    res.setHeader('x-proxy-target', targetUrl);
 
     upstream.headers.forEach((value, key) => {
       if (!HOP_BY_HOP_HEADERS.has(key.toLowerCase())) {
@@ -91,9 +110,9 @@ module.exports = async (req, res) => {
       }
     });
 
-    const buffer = Buffer.from(await upstream.arrayBuffer());
+    const responseBuffer = Buffer.from(await upstream.arrayBuffer());
     console.log(`[Vercel BFF] <- ${upstream.status} ${method} ${req.url}`);
-    return res.send(buffer);
+    return res.send(responseBuffer);
   } catch (error) {
     console.error(`[Vercel BFF] !! ${method} ${req.url}:`, error.message);
     return res.status(502).json({
