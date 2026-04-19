@@ -43,6 +43,8 @@ Frontend -> `/api/*` -> BFF proxy -> HTTP backend (`BACKEND_URL`)
 
 ```
 auxray_admin/
+├── api/
+│   └── [...path].js           # Vercel serverless BFF proxy (/api/*)
 ├── server.js                 # BFF proxy + static frontend server
 ├── .env.example              # Environment variable template
 └── src/
@@ -92,6 +94,18 @@ const data = await res.json();
 - Response passthrough: backend status and body are returned as-is
 - Errors: network failures return `502 Bad Gateway`
 - Logging: request/response/error logs are printed in server console
+
+### Vercel Deployment Note
+
+`server.js` is for self-hosted runtime. On Vercel, the proxy is handled by `api/[...path].js`.
+
+Set these variables in Vercel Project Settings -> Environment Variables:
+
+```bash
+BACKEND_URL=http://your-backend-host:5000
+BACKEND_PATH_PREFIX=/api
+REACT_APP_API_BASE=/api
+```
 
 ## Project Structure
 
