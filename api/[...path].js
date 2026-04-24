@@ -16,16 +16,6 @@ function normalizePrefix(prefix) {
   return `/${String(prefix).replace(/^\/+|\/+$/g, '')}`;
 }
 
-function normalizePathParam(pathParam) {
-  if (Array.isArray(pathParam)) {
-    return pathParam.join('/').replace(/^\/+|\/+$/g, '');
-  }
-  if (typeof pathParam === 'string') {
-    return pathParam.replace(/^\/+|\/+$/g, '');
-  }
-  return '';
-}
-
 async function readRawBody(req) {
   const chunks = [];
   for await (const chunk of req) {
@@ -37,61 +27,65 @@ async function readRawBody(req) {
 function buildTargetUrl(req) {
   const backendUrl = (process.env.BACKEND_URL || '').replace(/\/+$/, '');
   const backendPrefix = normalizePrefix(process.env.BACKEND_PATH_PREFIX || '/api');
-  const path = normalizePathParam(req.query.path);
+  const pathParts = Array.isArray(req.query.path)
+    ? req.query.path
+    : req.query.path
+      ? [req.query.path]
+      : [];
 
-  const searchParams = new URLSearchParams();
+  const pathname = pathParts.length ? `/${pathParts.join('/')}` : '';
+
+  const queryParams = new URLSearchParams();
   Object.entries(req.query || {}).forEach(([key, value]) => {
     if (key === 'path') return;
 
     if (Array.isArray(value)) {
-      value.forEach((item) => searchParams.append(key, String(item)));
+      value.forEach((v) => queryParams.append(key, String(v)));
       return;
     }
 
     if (value != null) {
-      searchParams.append(key, String(value));
+      queryParams.append(key, String(value));
     }
   });
 
-  const queryString = searchParams.toString();
-  const pathname = path ? `/${path}` : '';
-
+  const queryString = queryParams.toString();
   return `${backendUrl}${backendPrefix}${pathname}${queryString ? `?${queryString}` : ''}`;
 }
 
 module.exports = async (req, res) => {
-  const backendUrl = process.env.BACKEND_URL;
-  if (!backendUrl) {
-    return res.status(500).json({
-      error: 'Server misconfiguration',
-      message: 'BACKEND_URL is missing',
-    });
-  }
+  try {
+    const backendUrl = process.env.BACKEND_URL;
+    if (!backendUrl) {
+      return res.status(500).json({
+        error: 'Server misconfiguration',
+        message: 'BACKEND_URL is missing',
+      });
+    }
 
-  const method = req.method.toUpperCase();
-  const targetUrl = buildTargetUrl(req);
+    const targetUrl = buildTargetUrl(req);
+    const method = req.method.toUpperCase();
 
-  const headers = {};
-  for (const [key, value] of Object.entries(req.headers || {})) {
-    if (HOP_BY_HOP_HEADERS.has(key.toLowerCase())) continue;
-    headers[key] = value;
-  }
+    const headers = {};
+    for (const [key, value] of Object.entries(req.headers || {})) {
+      if (HOP_BY_HOP_HEADERS.has(key.toLowerCase())) continue;
+      headers[key] = value;
+    }
 
-  let body;
-  if (!['GET', 'HEAD'].includes(method)) {
-    if (req.body == null) {
-      body = await readRawBody(req);
-    } else if (Buffer.isBuffer(req.body) || typeof req.body === 'string') {
-      body = req.body;
-    } else {
-      body = JSON.stringify(req.body);
-      if (!headers['content-type'] && !headers['Content-Type']) {
-        headers['content-type'] = 'application/json';
+    let body;
+    if (!['GET', 'HEAD'].includes(method)) {
+      if (req.body == null) {
+        body = await readRawBody(req);
+      } else if (Buffer.isBuffer(req.body) || typeof req.body === 'string') {
+        body = req.body;
+      } else {
+        body = JSON.stringify(req.body);
+        if (!headers['content-type'] && !headers['Content-Type']) {
+          headers['content-type'] = 'application/json';
+        }
       }
     }
-  }
 
-  try {
     console.log(`[Vercel BFF] -> ${method} ${req.url} => ${targetUrl}`);
 
     const upstream = await fetch(targetUrl, {
@@ -114,10 +108,11 @@ module.exports = async (req, res) => {
     console.log(`[Vercel BFF] <- ${upstream.status} ${method} ${req.url}`);
     return res.send(responseBuffer);
   } catch (error) {
-    console.error(`[Vercel BFF] !! ${method} ${req.url}:`, error.message);
+    console.error('[Vercel BFF] Unhandled proxy error:', error);
     return res.status(502).json({
       error: 'Bad Gateway',
       message: 'Failed to reach backend service',
+      details: error?.message || 'Unknown proxy error',
     });
   }
 };

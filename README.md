@@ -44,8 +44,7 @@ Frontend -> `/api/*` -> BFF proxy -> HTTP backend (`BACKEND_URL`)
 ```
 auxray_admin/
 ├── api/
-│   └── proxy.js               # Vercel serverless BFF proxy (/api/*)
-├── vercel.json                # Rewrite /api/:path* -> /api/proxy
+│   └── [...path].js           # Vercel serverless BFF proxy (/api/*)
 ├── server.js                 # BFF proxy + static frontend server
 ├── .env.example              # Environment variable template
 └── src/
@@ -98,7 +97,7 @@ const data = await res.json();
 
 ### Vercel Deployment Note
 
-`server.js` is for self-hosted runtime. On Vercel, the proxy is handled by `api/proxy.js` via rewrite rules in `vercel.json`.
+`server.js` is for self-hosted runtime. On Vercel, the proxy is handled by `api/[...path].js`.
 
 Set these variables in Vercel Project Settings -> Environment Variables:
 
