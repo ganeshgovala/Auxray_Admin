@@ -16,7 +16,7 @@ import Installations from './components/Installations';
 import RegistrationTeamDashboard from './components/RegistrationTeamDashboard';
 import RegistrationTeamDetails from './components/RegistrationTeamDetails';
 
-const SHOW_ACCESS_BLOCK_PAGE = true;
+const SHOW_ACCESS_BLOCK_PAGE = false;
 
 function AccessBlockedPage() {
   return (
