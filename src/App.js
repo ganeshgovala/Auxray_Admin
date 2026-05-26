@@ -108,29 +108,6 @@ function AccessBlockedPage() {
   );
 }
 
-function LegacyAppRoutes() {
-  return (
-    <>
-      <Route path="/" element={<Login />} />
-      <Route path="/registration-team" element={<RegistrationTeamDashboard />} />
-      <Route path="/dashboard" element={<Dashboard />} />
-      <Route path="/registration-team/registration/:id" element={<RegistrationTeamDetails />} />
-      <Route path="/leads" element={<LeadsCreated />} />
-      <Route path="/leads/:leadId" element={<LeadDetails />} />
-      <Route path="/quotes" element={<QuoteRequests />} />
-      <Route path="/quotes/:quoteId" element={<QuoteDetails />} />
-      <Route path="/registrations" element={<Registrations />} />
-      <Route path="/registrations/:registrationId" element={<RegistrationDetails />} />
-      <Route path="/installations" element={<Installations />} />
-      <Route path="/inventory" element={<Inventory />} />
-      <Route path="/profile" element={<Profile />} />
-      <Route path="/team-members" element={<TeamMembers />} />
-      <Route path="/reminders" element={<Reminders />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </>
-  );
-}
-
 function App() {
   return (
     <Router>
@@ -138,7 +115,24 @@ function App() {
         {SHOW_ACCESS_BLOCK_PAGE ? (
           <Route path="*" element={<AccessBlockedPage />} />
         ) : (
-          <LegacyAppRoutes />
+          <>
+            <Route path="/" element={<Login />} />
+            <Route path="/registration-team" element={<RegistrationTeamDashboard />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/registration-team/registration/:id" element={<RegistrationTeamDetails />} />
+            <Route path="/leads" element={<LeadsCreated />} />
+            <Route path="/leads/:leadId" element={<LeadDetails />} />
+            <Route path="/quotes" element={<QuoteRequests />} />
+            <Route path="/quotes/:quoteId" element={<QuoteDetails />} />
+            <Route path="/registrations" element={<Registrations />} />
+            <Route path="/registrations/:registrationId" element={<RegistrationDetails />} />
+            <Route path="/installations" element={<Installations />} />
+            <Route path="/inventory" element={<Inventory />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/team-members" element={<TeamMembers />} />
+            <Route path="/reminders" element={<Reminders />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </>
         )}
       </Routes>
     </Router>
