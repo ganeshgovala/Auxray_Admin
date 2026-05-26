@@ -16,6 +16,23 @@ function normalizePrefix(prefix) {
   return `/${String(prefix).replace(/^\/+|\/+$/g, '')}`;
 }
 
+function resolvePathname(req) {
+  const queryPath = req?.query?.path;
+  if (Array.isArray(queryPath) && queryPath.length) {
+    return `/${queryPath.join('/')}`;
+  }
+  if (typeof queryPath === 'string' && queryPath) {
+    return `/${queryPath}`;
+  }
+
+  const rawPath = (req?.url || '').split('?')[0] || '';
+  if (!rawPath) return '';
+
+  if (rawPath === '/api') return '';
+  if (rawPath.startsWith('/api/')) return rawPath.slice(4);
+  return rawPath.startsWith('/') ? rawPath : `/${rawPath}`;
+}
+
 async function readRawBody(req) {
   const chunks = [];
   for await (const chunk of req) {
@@ -27,13 +44,7 @@ async function readRawBody(req) {
 function buildTargetUrl(req) {
   const backendUrl = (process.env.BACKEND_URL || '').replace(/\/+$/, '');
   const backendPrefix = normalizePrefix(process.env.BACKEND_PATH_PREFIX || '/api');
-  const pathParts = Array.isArray(req.query.path)
-    ? req.query.path
-    : req.query.path
-      ? [req.query.path]
-      : [];
-
-  const pathname = pathParts.length ? `/${pathParts.join('/')}` : '';
+  const pathname = resolvePathname(req);
 
   const queryParams = new URLSearchParams();
   Object.entries(req.query || {}).forEach(([key, value]) => {
