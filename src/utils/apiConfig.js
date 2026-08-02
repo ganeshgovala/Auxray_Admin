@@ -6,6 +6,7 @@ export const API_ENDPOINTS = {
   // Authentication
   LOGIN: '/api/auth/login',
   CREATE_USER: '/api/auth/create-user',
+  CHANGE_USER_PASSWORD: '/api/auth/change-user-password',
   
   // Users and Team Members
   USERS_BY_ROLE: '/api/users/by-role/all',

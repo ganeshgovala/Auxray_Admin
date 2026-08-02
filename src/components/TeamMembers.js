@@ -31,6 +31,14 @@ const TeamMembers = () => {
   const [deleting, setDeleting] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
   const navigate = useNavigate();
 
   const departments = ['ALL PERSONALLS', 'SALES EXECUTIVE', 'LEAD MANAGER', 'INSTALLATION MANAGER', 'REGISTRATION STAFF', 'CHILD ADMIN', 'SUPER ADMIN'];
@@ -230,11 +238,6 @@ const TeamMembers = () => {
         isActive: true
       };
 
-      // Only include password if it was changed
-      if (formData.password) {
-        updateData.password = formData.password;
-      }
-
       await axios.put(
         `${buildApiUrl('/api/users')}/${editingMember.id}`,
         updateData,
@@ -263,6 +266,60 @@ const TeamMembers = () => {
   const cancelDelete = () => {
     setShowDeleteModal(false);
     setMemberToDelete(null);
+  };
+
+  const handleChangePasswordClick = () => {
+    setPasswordData({ newPassword: '', confirmPassword: '' });
+    setPasswordError('');
+    setPasswordSuccess('');
+    setShowChangePasswordModal(true);
+  };
+
+  const handleChangePasswordSubmit = async (e) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    if (!editingMember?.email) {
+      setPasswordError('Could not determine which member to update.');
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError('New password and confirm password do not match.');
+      return;
+    }
+
+    setChangingPassword(true);
+    const token = localStorage.getItem('token');
+
+    try {
+      await axios.put(
+        buildApiUrl(API_ENDPOINTS.CHANGE_USER_PASSWORD),
+        {
+          email: editingMember.email,
+          password: passwordData.newPassword
+        },
+        {
+          headers: {
+            'accept': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      setPasswordSuccess('Password changed successfully!');
+      setTimeout(() => {
+        setShowChangePasswordModal(false);
+        setPasswordData({ newPassword: '', confirmPassword: '' });
+        setPasswordSuccess('');
+      }, 1500);
+    } catch (err) {
+      setPasswordError(err.response?.data?.message || 'Failed to change password. Please try again.');
+    } finally {
+      setChangingPassword(false);
+    }
   };
 
   if (!user) return null;
@@ -445,16 +502,19 @@ const TeamMembers = () => {
                     />
                   </div>
 
-                  {/* Password Input */}
+                  {/* Change Password */}
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Password (leave empty to keep current)</label>
-                    <input
-                      type="password"
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                      placeholder="Enter new password (optional)"
-                    />
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+                    <button
+                      type="button"
+                      onClick={handleChangePasswordClick}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-blue-300 text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 font-semibold transition"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                      Change Password
+                    </button>
                   </div>
 
                   {/* Mobile Number Input */}
@@ -506,6 +566,91 @@ const TeamMembers = () => {
                     disabled={submitting}
                   >
                     {submitting ? 'Updating...' : 'Update Member'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Change Password Modal */}
+        {showChangePasswordModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-5 relative">
+                <h3 className="text-2xl font-bold text-white">Change Password</h3>
+                <p className="text-blue-100 text-sm mt-1">
+                  {editingMember?.email ? `Set a new password for ${editingMember.email}` : 'Set a new password'}
+                </p>
+                <button
+                  onClick={() => setShowChangePasswordModal(false)}
+                  className="absolute top-4 right-4 text-white hover:bg-blue-700 rounded-full p-2 transition"
+                  disabled={changingPassword}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <form onSubmit={handleChangePasswordSubmit} className="p-6">
+                {passwordError && (
+                  <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+                    {passwordError}
+                  </div>
+                )}
+                {passwordSuccess && (
+                  <div className="mb-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">
+                    {passwordSuccess}
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  {/* New Password */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">New Password</label>
+                    <input
+                      type="password"
+                      value={passwordData.newPassword}
+                      onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                      placeholder="Enter new password"
+                      required
+                    />
+                  </div>
+
+                  {/* Confirm Password */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Confirm Password</label>
+                    <input
+                      type="password"
+                      value={passwordData.confirmPassword}
+                      onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                      placeholder="Re-enter new password"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Modal Actions */}
+                <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => setShowChangePasswordModal(false)}
+                    className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-semibold transition"
+                    disabled={changingPassword}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={changingPassword}
+                  >
+                    {changingPassword ? 'Changing...' : 'Change Password'}
                   </button>
                 </div>
               </form>

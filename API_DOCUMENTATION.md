@@ -9,7 +9,7 @@
 ## Table of Contents
 1. [Authentication & Roles](#1-authentication--roles)
 2. [Brands API](#2-brands-api)
-   - [Model Schema](#brand-model-schema)
+   - [Model Sema](#brand-model-schema)
    - [1. Create Brand](#1-create-brand)
    - [2. Get All Brands (Optionally Filter by Category)](#2-get-all-brands)
    - [3. Get Brands Grouped by Category](#3-get-brands-grouped-by-category)
