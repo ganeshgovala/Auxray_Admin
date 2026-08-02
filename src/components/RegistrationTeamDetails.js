@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { buildApiUrl, API_ENDPOINTS } from '../utils/apiConfig';
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders, isAuthError } from '../utils/apiConfig';
 
 function formatDate(dateString) {
   if (!dateString) return 'N/A';
@@ -26,16 +26,24 @@ const RegistrationTeamDetails = () => {
     async function fetchDetails() {
       setLoading(true);
       try {
-        const res = await axios.get(`${buildApiUrl(API_ENDPOINTS.REGISTRATION_DETAILS)}/${id}`);
+        const res = await axios.get(
+          `${buildApiUrl(API_ENDPOINTS.REGISTRATION_DETAILS)}/${id}`,
+          { headers: getAuthHeaders() }
+        );
         setRegistration(res.data);
       } catch (err) {
         console.error('Registration fetch error:', err, 'ID:', id);
+        if (isAuthError(err)) {
+          localStorage.clear();
+          navigate('/');
+          return;
+        }
         setRegistration(null);
       }
       setLoading(false);
     }
     fetchDetails();
-  }, [id]);
+  }, [id, navigate]);
 
   if (loading) return <div className="p-8 text-center">Loading...</div>;
   if (!registration) return <div className="p-8 text-center text-red-500">Registration not found for ID: {id}</div>;

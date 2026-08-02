@@ -1,15 +1,17 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { useSelector, useDispatch } from 'react-redux';
 import Sidebar from './Sidebar';
-import { getCachedQuotesData, setCachedQuotesData, clearQuotesCache } from '../utils/cacheManager';
-import { buildApiUrl, API_ENDPOINTS } from '../utils/apiConfig';
+import { getStoredUser } from '../utils/apiConfig';
+import { fetchQuotes } from '../store/slices';
 
 function QuoteRequests() {
   const navigate = useNavigate();
-  const [quotes, setQuotes] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch();
+  const quotes = useSelector((s) => s.quotes.items);
+  const loading = useSelector(
+    (s) => s.quotes.status === 'loading' && s.quotes.items.length === 0
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [sortBy, setSortBy] = useState('latest');
@@ -27,52 +29,25 @@ function QuoteRequests() {
       return;
     }
 
-    const parsedUser = JSON.parse(user);
+    const parsedUser = getStoredUser();
+    if (!parsedUser) {
+      localStorage.clear();
+      navigate('/');
+      return;
+    }
     if (parsedUser.role !== 4 && parsedUser.role !== 5) {
       navigate('/');
       return;
     }
 
-    loadQuotes();
+    dispatch(fetchQuotes());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
-  const loadQuotes = () => {
-    // Check if we have cached data
-    const cachedData = getCachedQuotesData();
-
-    if (cachedData) {
-      setQuotes(cachedData);
-      setLoading(false);
-      return;
-    }
-
-    // Fetch fresh data
-    fetchQuotes();
-  };
-
-  const fetchQuotes = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(buildApiUrl(API_ENDPOINTS.QUOTES_ALL), {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      const quotesData = response.data.quotes || [];
-      setQuotes(quotesData);
-      setCachedQuotesData(quotesData);
-    } catch (error) {
-      console.error('Error fetching quotes:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleRefresh = async () => {
-    clearQuotesCache();
     setRefreshing(true);
     try {
-      await fetchQuotes();
+      await dispatch(fetchQuotes({ force: true }));
     } finally {
       setRefreshing(false);
     }
@@ -258,7 +233,7 @@ function QuoteRequests() {
             <div className="mb-8">
               <div className="flex items-center justify-between mb-4 pb-4 border-b-2 border-gray-300">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center">
+                  <div className="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center">
                     <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
@@ -268,21 +243,21 @@ function QuoteRequests() {
                     <p className="text-sm text-gray-600">Requires immediate attention • {pendingQuotes.length} pending</p>
                   </div>
                 </div>
-                <span className="px-4 py-2 bg-gray-900 text-white rounded-lg font-semibold text-sm">
+                <span className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold text-sm">
                   Action Required
                 </span>
               </div>
 
-              <div className="bg-white rounded-lg shadow-sm overflow-hidden border-2 border-gray-900">
+              <div className="bg-white rounded-lg shadow-sm overflow-hidden border-2 border-red-600">
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-gray-900 text-white">
+                    <thead className="bg-red-600 text-white">
                       <tr>
                         <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Client</th>
                         <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Contact</th>
                         <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Amount</th>
                         <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Power</th>
-                        <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Products</th>
+                        {/* Products column hidden — {<th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Products</th>} */}
                         <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Date</th>
                         <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Actions</th>
                       </tr>
@@ -318,16 +293,18 @@ function QuoteRequests() {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm font-semibold text-gray-900">{quote.noOfKWs} kW</div>
                           </td>
+                          {/* Products column hidden
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm font-semibold text-gray-900">{quote.products?.length || 0} items</div>
                           </td>
+                          */}
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-gray-700">{formatDate(quote.createdAt)}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <button
                               onClick={() => navigate(`/quotes/${quote._id}`)}
-                              className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg font-semibold text-sm transition flex items-center gap-2"
+                              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-sm transition flex items-center gap-2"
                             >
                               Review
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -368,7 +345,7 @@ function QuoteRequests() {
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Contact</th>
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Amount</th>
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Power</th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Products</th>
+                        {/* Products column hidden — {<th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Products</th>} */}
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Date</th>
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
@@ -405,9 +382,11 @@ function QuoteRequests() {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm font-semibold text-gray-800">{quote.noOfKWs} kW</div>
                           </td>
+                          {/* Products column hidden
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-semibold text-gray-800">{quote.products.length} items</div>
+                            <div className="text-sm font-semibold text-gray-800">{quote.products?.length ?? 0} items</div>
                           </td>
+                          */}
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(quote.status)}`}>
                               {quote.status}

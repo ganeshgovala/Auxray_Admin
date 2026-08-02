@@ -1,16 +1,17 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { useSelector, useDispatch } from 'react-redux';
 import Sidebar from './Sidebar';
-import { getCachedLeadsData, setCachedLeadsData, clearLeadsCache } from '../utils/cacheManager';
-import { buildApiUrl, API_ENDPOINTS } from '../utils/apiConfig';
+import { fetchLeads } from '../store/slices';
 
 const LeadsCreated = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [searchQuery, setSearchQuery] = useState('');
-  const [leads, setLeads] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const leads = useSelector((s) => s.leads.items);
+  const loading = useSelector(
+    (s) => s.leads.status === 'loading' && s.leads.items.length === 0
+  );
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterStage, setFilterStage] = useState('all');
   const [sortBy, setSortBy] = useState('latest');
@@ -18,53 +19,19 @@ const LeadsCreated = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [refreshing, setRefreshing] = useState(false);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    const userData = localStorage.getItem('user');
-    if (!userData) {
+    if (!localStorage.getItem('user')) {
       navigate('/');
-    } else {
-      loadLeads();
-    }
-  }, [navigate]);
-
-  const loadLeads = () => {
-    // Check if we have cached data
-    const cachedData = getCachedLeadsData();
-
-    if (cachedData) {
-      setLeads(cachedData);
-      setLoading(false);
       return;
     }
-
-    // Fetch fresh data
-    fetchLeads();
-  };
-
-  const fetchLeads = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(buildApiUrl(API_ENDPOINTS.LEADS_ALL), {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      const leadsData = response.data.leads || [];
-      setLeads(leadsData);
-      setCachedLeadsData(leadsData);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching leads:', error);
-      setLoading(false);
-    }
-  };
+    dispatch(fetchLeads());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigate]);
 
   const handleRefresh = async () => {
-    clearLeadsCache();
     setRefreshing(true);
     try {
-      await fetchLeads();
+      await dispatch(fetchLeads({ force: true }));
     } finally {
       setRefreshing(false);
     }
@@ -106,9 +73,10 @@ const LeadsCreated = () => {
   };
 
   const filteredLeads = leads.filter(lead => {
-    const matchesSearch = lead.client_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         lead.phone_number.includes(searchQuery) ||
-                         lead.location.toLowerCase().includes(searchQuery.toLowerCase());
+    const query = searchQuery.toLowerCase();
+    const matchesSearch = (lead.client_name || '').toLowerCase().includes(query) ||
+                         (lead.phone_number || '').includes(searchQuery) ||
+                         (lead.location || '').toLowerCase().includes(query);
     const matchesStatus = filterStatus === 'all' || lead.status === filterStatus;
     const matchesStage = filterStage === 'all' || lead.currentStage === filterStage;
     return matchesSearch && matchesStatus && matchesStage;
@@ -297,7 +265,7 @@ const LeadsCreated = () => {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 bg-teal-600 rounded-lg flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-                                {lead.client_name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                                {(lead.client_name || '').split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase() || 'NA'}
                               </div>
                               <div>
                                 <div className="text-sm font-semibold text-gray-800">{lead.client_name}</div>
@@ -339,7 +307,7 @@ const LeadsCreated = () => {
                             <div className="text-sm font-semibold text-gray-800">{lead.plantCapacity} kW</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-600">{lead.created_by.name}</div>
+                            <div className="text-sm text-gray-600">{lead.created_by?.name || 'Unknown'}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <button

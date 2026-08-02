@@ -1,18 +1,20 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { useSelector, useDispatch } from 'react-redux';
 import Sidebar from './Sidebar';
-import { getCachedRemindersData, setCachedRemindersData } from '../utils/cacheManager';
-import { buildApiUrl, API_ENDPOINTS } from '../utils/apiConfig';
+import { getStoredUser } from '../utils/apiConfig';
+import { fetchReminders } from '../store/slices';
 
 const Reminders = () => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [reminders, setReminders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const reminders = useSelector((s) => s.reminders.items);
+  const loading = useSelector(
+    (s) => s.reminders.status === 'loading' && s.reminders.items.length === 0
+  );
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -25,8 +27,13 @@ const Reminders = () => {
       return;
     }
 
-    const parsedUser = JSON.parse(userData);
-    
+    const parsedUser = getStoredUser();
+    if (!parsedUser) {
+      localStorage.clear();
+      navigate('/');
+      return;
+    }
+
     // Verify role is 4 or 5 (Child Admin or Super Admin)
     if (parsedUser.role !== 4 && parsedUser.role !== 5) {
       localStorage.clear();
@@ -35,44 +42,9 @@ const Reminders = () => {
     }
 
     // Fetch reminders
-    loadReminders(token);
+    dispatch(fetchReminders());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
-
-  const loadReminders = (token) => {
-    // Check if we have cached data
-    const cachedData = getCachedRemindersData();
-
-    if (cachedData) {
-      setReminders(cachedData);
-      setLoading(false);
-      return;
-    }
-
-    // Fetch fresh data
-    fetchReminders(token);
-  };
-
-  const fetchReminders = async (token) => {
-    try {
-      const response = await axios.get(
-        buildApiUrl(API_ENDPOINTS.LEADS_UPCOMING_REMINDERS),
-        {
-          headers: {
-            'accept': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-      
-      const remindersData = response.data.leads || [];
-      setReminders(remindersData);
-      setCachedRemindersData(remindersData);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching reminders:', error);
-      setLoading(false);
-    }
-  };
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';

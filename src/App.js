@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import Inventory from './components/Inventory';
+import Brands from './components/Brands';
 import Profile from './components/Profile';
 import TeamMembers from './components/TeamMembers';
 import Reminders from './components/Reminders';
@@ -128,6 +129,7 @@ function App() {
             <Route path="/registrations/:registrationId" element={<RegistrationDetails />} />
             <Route path="/installations" element={<Installations />} />
             <Route path="/inventory" element={<Inventory />} />
+            <Route path="/brands" element={<Brands />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/team-members" element={<TeamMembers />} />
             <Route path="/reminders" element={<Reminders />} />

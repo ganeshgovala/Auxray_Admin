@@ -1,46 +1,33 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
 import axios from 'axios';
 import Sidebar from './Sidebar';
 import { buildApiUrl, API_ENDPOINTS } from '../utils/apiConfig';
+import { fetchLeads } from '../store/slices';
 
 const LeadDetails = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const { leadId } = useParams();
-  const [lead, setLead] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // Derive the lead from the shared store instead of re-fetching the whole list.
+  const leads = useSelector((s) => s.leads.items);
+  const leadsStatus = useSelector((s) => s.leads.status);
+  const lead = leads.find((l) => l._id === leadId) || null;
+  const loading = leadsStatus === 'loading' && leads.length === 0;
   const [activeTab, setActiveTab] = useState('overview');
   const [closingLead, setClosingLead] = useState(false);
   const [showCloseLeadModal, setShowCloseLeadModal] = useState(false);
   const [closeLeadNote, setCloseLeadNote] = useState('');
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    const userData = localStorage.getItem('user');
-    if (!userData) {
+    if (!localStorage.getItem('user')) {
       navigate('/');
-    } else {
-      fetchLeadDetails();
+      return;
     }
+    dispatch(fetchLeads());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate, leadId]);
-
-  const fetchLeadDetails = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(buildApiUrl(API_ENDPOINTS.LEADS_ALL), {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      const foundLead = response.data.leads.find(l => l._id === leadId);
-      setLead(foundLead);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching lead details:', error);
-      setLoading(false);
-    }
-  };
 
   const closeLeadInstallation = async () => {
     if (!lead) return;
@@ -54,7 +41,7 @@ const LeadDetails = () => {
       );
       setShowCloseLeadModal(false);
       setCloseLeadNote('');
-      await fetchLeadDetails(); // Refresh the lead details
+      await dispatch(fetchLeads({ force: true })); // Refresh the lead details
     } catch (error) {
       console.error('Error closing lead:', error);
     } finally {
@@ -220,7 +207,7 @@ const LeadDetails = () => {
                 <div className="bg-gradient-to-br from-teal-600 to-teal-700 rounded-xl shadow-lg p-6 text-white">
                   <div className="flex flex-col items-center text-center mb-6">
                     <div className="w-24 h-24 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center text-white text-3xl font-bold mb-4 shadow-lg">
-                      {lead.client_name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                      {(lead.client_name || '').split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase() || 'NA'}
                     </div>
                     <h2 className="text-2xl font-bold mb-2">{lead.client_name}</h2>
                     <span className="px-4 py-1.5 rounded-full text-xs font-bold bg-white/20 backdrop-blur-sm">
@@ -370,9 +357,9 @@ const LeadDetails = () => {
                         <p className="text-sm text-gray-500 font-semibold uppercase mb-1">Created By</p>
                         <div className="flex items-center gap-2">
                           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white text-xs font-bold">
-                            {lead.created_by.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                            {(lead.created_by?.name || '').split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase() || 'NA'}
                           </div>
-                          <p className="text-sm font-semibold text-gray-800">{lead.created_by.name}</p>
+                          <p className="text-sm font-semibold text-gray-800">{lead.created_by?.name || 'Unknown'}</p>
                         </div>
                       </div>
                       

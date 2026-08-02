@@ -44,12 +44,10 @@ const Login = () => {
 
       const { token, user } = response.data;
 
-      // Console log user data for debugging
-      console.log('Login Response:', response.data);
-      console.log('User Data:', user);
-      console.log('User Role:', user.role);
-      console.log('User Name:', user.name);
-      console.log('User Email:', user.email);
+      if (!token || !user) {
+        setError('Login failed. Unexpected response from server.');
+        return;
+      }
 
       // Store token and user data in localStorage
       localStorage.setItem('token', token);

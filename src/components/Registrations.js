@@ -1,15 +1,18 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
 import axios from 'axios';
 import Sidebar from './Sidebar';
-import { getCachedRegistrationsData, setCachedRegistrationsData, clearRegistrationsCache } from '../utils/cacheManager';
-import { buildApiUrl, API_ENDPOINTS } from '../utils/apiConfig';
+import { buildApiUrl, API_ENDPOINTS, getStoredUser } from '../utils/apiConfig';
+import { fetchRegistrations } from '../store/slices';
 
 function Registrations() {
   const navigate = useNavigate();
-  const [registrations, setRegistrations] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch();
+  const registrations = useSelector((s) => s.registrations.items);
+  const loading = useSelector(
+    (s) => s.registrations.status === 'loading' && s.registrations.items.length === 0
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
@@ -29,53 +32,20 @@ function Registrations() {
       return;
     }
 
-    const parsedUser = JSON.parse(user);
+    const parsedUser = getStoredUser();
+    if (!parsedUser) {
+      localStorage.clear();
+      navigate('/');
+      return;
+    }
     if (parsedUser.role !== 4 && parsedUser.role !== 5) {
       navigate('/');
       return;
     }
 
-    loadRegistrations();
+    dispatch(fetchRegistrations());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
-
-  const loadRegistrations = () => {
-    // Check if we have cached data
-    const cachedData = getCachedRegistrationsData();
-
-    if (cachedData) {
-      setRegistrations(cachedData);
-      setLoading(false);
-      return;
-    }
-
-    // Fetch fresh data
-    fetchRegistrations();
-  };
-
-  const fetchRegistrations = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(
-        buildApiUrl(API_ENDPOINTS.REGISTRATIONS_PENDING),
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'accept': 'application/json'
-          }
-        }
-      );
-      // Handle response with count and data properties
-      const data = response.data;
-      const registrationsArray = data.data || [];
-      setRegistrations(registrationsArray);
-      setCachedRegistrationsData(registrationsArray);
-    } catch (error) {
-      console.error('Error fetching registrations:', error);
-      setRegistrations([]); // Set empty array on error
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -123,8 +93,13 @@ function Registrations() {
     setAssigning(true);
     try {
       const token = localStorage.getItem('token');
+      const registrationId = selectedRegistration?.registration?._id;
+      if (!registrationId) {
+        alert('Could not determine the registration to assign.');
+        return;
+      }
       await axios.patch(
-        `${buildApiUrl(API_ENDPOINTS.REGISTRATIONS_ASSIGN)}/${selectedRegistration.registration._id}`,
+        `${buildApiUrl(API_ENDPOINTS.REGISTRATIONS_ASSIGN)}/${registrationId}`,
         {
           userId: staffMember._id
         },
@@ -136,7 +111,7 @@ function Registrations() {
         }
       );
       // Refresh registrations after assignment
-      await fetchRegistrations();
+      await dispatch(fetchRegistrations({ force: true }));
       setShowAssignDialog(false);
       setSelectedRegistration(null);
     } catch (error) {
@@ -171,7 +146,7 @@ function Registrations() {
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar activeMenu="Registrations" />
       
-      <div className="flex-1 ml-0 lg:ml-64 p-4 sm:p-6 lg:p-8">
+      <div className="flex-1 min-w-0 ml-0 lg:ml-64 p-4 sm:p-6 lg:p-8">
         {/* Mobile Header */}
         <div className="lg:hidden mb-4 flex items-center justify-between bg-white p-4 rounded-lg shadow-sm">
           <h2 className="text-lg font-semibold text-gray-800">Active Registrations</h2>
@@ -249,10 +224,7 @@ function Registrations() {
             </div>
             <div className="flex gap-2 w-full sm:w-auto">
               <button
-                onClick={() => {
-                  clearRegistrationsCache();
-                  fetchRegistrations();
-                }}
+                onClick={() => dispatch(fetchRegistrations({ force: true }))}
                 disabled={loading}
                 className="px-4 py-2 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 transition flex items-center gap-2"
               >

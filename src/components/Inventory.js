@@ -1,20 +1,25 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
 import axios from 'axios';
 import Sidebar from './Sidebar';
-import { getCachedInventoryData, setCachedInventoryData, clearInventoryCache } from '../utils/cacheManager';
-import { buildApiUrl, API_ENDPOINTS } from '../utils/apiConfig';
+import { buildApiUrl, API_ENDPOINTS, getStoredUser } from '../utils/apiConfig';
+import { fetchProducts as fetchProductsThunk } from '../store/productsSlice';
 
 const Inventory = () => {
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState('products');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [products, setProducts] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [groupedProducts, setGroupedProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const dispatch = useDispatch();
+  const products = useSelector((s) => s.products.items);
+  const categories = useSelector((s) => s.products.categories);
+  const groupedProducts = useSelector((s) => s.products.grouped);
+  const loading = useSelector(
+    (s) => s.products.status === 'loading' && s.products.items.length === 0
+  );
+  const categoriesLoading = useSelector(
+    (s) => s.products.status === 'loading' && s.products.categories.length === 0
+  );
   const [formData, setFormData] = useState({
     product_name: '',
     image: '',
@@ -41,8 +46,13 @@ const Inventory = () => {
       return;
     }
 
-    const parsedUser = JSON.parse(userData);
-    
+    const parsedUser = getStoredUser();
+    if (!parsedUser) {
+      localStorage.clear();
+      navigate('/');
+      return;
+    }
+
     // Verify role is 4 (Child Admin) or 5 (Super Admin)
     if (parsedUser.role !== 4 && parsedUser.role !== 5) {
       localStorage.clear();
@@ -51,100 +61,11 @@ const Inventory = () => {
     }
 
     setUser(parsedUser);
-    
-    // Load products and categories (from cache or API)
-    loadInventoryData(token);
+
+    // Load products, categories and grouped products into the store.
+    dispatch(fetchProductsThunk());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
-
-  const loadInventoryData = (token) => {
-    // Check if we have cached data
-    const cachedData = getCachedInventoryData();
-
-    if (cachedData) {
-      setProducts(cachedData.products || []);
-      setCategories(cachedData.categories || []);
-      setGroupedProducts(cachedData.groupedProducts || []);
-      setLoading(false);
-      setCategoriesLoading(false);
-      return;
-    }
-
-    // Fetch fresh data
-    fetchProducts(token);
-    fetchCategories(token);
-    fetchGroupedProducts(token);
-  };
-
-  const fetchProducts = async (token) => {
-    try {
-      const response = await axios.get(
-        buildApiUrl(API_ENDPOINTS.PRODUCTS),
-        {
-          headers: {
-            'accept': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-      
-      const productsData = response.data.products || [];
-      setProducts(productsData);
-      setLoading(false);
-      updateInventoryCache({ products: productsData });
-    } catch (error) {
-      console.error('Error fetching products:', error);
-      setLoading(false);
-    }
-  };
-
-  const fetchCategories = async (token) => {
-    setCategoriesLoading(true);
-    try {
-      const response = await axios.get(
-        buildApiUrl(API_ENDPOINTS.PRODUCTS_CATEGORIES),
-        {
-          headers: {
-            'accept': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-      
-      const categoriesData = response.data.categories || [];
-      setCategories(categoriesData);
-      setCategoriesLoading(false);
-      updateInventoryCache({ categories: categoriesData });
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-      setCategoriesLoading(false);
-    }
-  };
-
-  const fetchGroupedProducts = async (token) => {
-    try {
-      const response = await axios.get(
-        buildApiUrl(API_ENDPOINTS.PRODUCTS_GROUPED),
-        {
-          headers: {
-            'accept': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-      
-      const groupedData = response.data.data || [];
-      setGroupedProducts(groupedData);
-      updateInventoryCache({ groupedProducts: groupedData });
-    } catch (error) {
-      console.error('Error fetching grouped products:', error);
-    }
-  };
-
-  const updateInventoryCache = (newData) => {
-    const cachedData = getCachedInventoryData() || {};
-    const updatedData = { ...cachedData, ...newData };
-    setCachedInventoryData(updatedData);
-  };
 
   const handleInputChange = (e) => {
     setFormData({
@@ -169,7 +90,7 @@ const Inventory = () => {
         category: formData.category === 'Other' ? customCategory : formData.category
       };
 
-      const response = await axios.post(
+      await axios.post(
         buildApiUrl(API_ENDPOINTS.PRODUCTS_CREATE),
         productData,
         {
@@ -182,14 +103,10 @@ const Inventory = () => {
       );
 
       setSuccess('Product created successfully!');
-      setProducts([response.data.product, ...products]);
-      
-      // Clear cache and refresh data
-      clearInventoryCache();
-      fetchProducts(token);
-      fetchCategories(token);
-      fetchGroupedProducts(token);
-      
+
+      // Refresh products/categories/grouped from the backend.
+      dispatch(fetchProductsThunk({ force: true }));
+
       // Reset form and close modal after a short delay
       setTimeout(() => {
         setShowAddModal(false);
@@ -243,11 +160,8 @@ const Inventory = () => {
         }
       );
 
-      // Clear cache and refresh products list
-      clearInventoryCache();
-      fetchProducts(token);
-      fetchCategories(token);
-      fetchGroupedProducts(token);
+      // Refresh products list from the backend.
+      dispatch(fetchProductsThunk({ force: true }));
       setShowDeleteModal(false);
       setProductToDelete(null);
     } catch (error) {

@@ -1,9 +1,37 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
 import logo from '../assets/images/logo.png';
+import { resetStore } from '../store/resetStore';
+import {
+  fetchLeads,
+  fetchQuotes,
+  fetchReminders,
+  fetchRegistrations,
+  fetchInstallations,
+} from '../store/slices';
 
-function Sidebar({ activeMenu, quotesCount = 0, leadsCount = 0, remindersCount = 0 }) {
+function Sidebar({ activeMenu }) {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+
+  // Counts come from the shared store so every page shows consistent totals.
+  const leadsCount = useSelector((s) => s.leads.items.length);
+  const quotesCount = useSelector((s) => s.quotes.items.length);
+  const remindersCount = useSelector((s) => s.reminders.items.length);
+  const registrationsCount = useSelector((s) => s.registrations.items.length);
+  const installationsCount = useSelector((s) => s.installations.items.length);
+
+  // Ensure the count sources are populated on every page. Each thunk is
+  // TTL-deduped, so this collapses with each page's own fetch (no extra calls).
+  useEffect(() => {
+    if (!localStorage.getItem('token')) return;
+    dispatch(fetchLeads());
+    dispatch(fetchQuotes());
+    dispatch(fetchReminders());
+    dispatch(fetchRegistrations());
+    dispatch(fetchInstallations());
+  }, [dispatch]);
 
   const handleNavigation = (menu) => {
     switch(menu) {
@@ -15,6 +43,9 @@ function Sidebar({ activeMenu, quotesCount = 0, leadsCount = 0, remindersCount =
         break;
       case 'Inventory':
         navigate('/inventory');
+        break;
+      case 'Brands':
+        navigate('/brands');
         break;
       case 'Leads':
         navigate('/leads');
@@ -40,6 +71,7 @@ function Sidebar({ activeMenu, quotesCount = 0, leadsCount = 0, remindersCount =
   };
 
   const handleLogout = () => {
+    dispatch(resetStore());
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     navigate('/');
@@ -78,7 +110,8 @@ function Sidebar({ activeMenu, quotesCount = 0, leadsCount = 0, remindersCount =
             </svg>
             <span className="text-sm font-medium">Team Members</span>
           </button>
-          <button 
+          {/* Inventory section commented out
+          <button
             onClick={() => handleNavigation('Inventory')}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition ${
               activeMenu === 'Inventory' ? 'bg-white text-teal-800' : 'text-white hover:bg-teal-700'
@@ -88,6 +121,18 @@ function Sidebar({ activeMenu, quotesCount = 0, leadsCount = 0, remindersCount =
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
             </svg>
             <span className="text-sm font-medium">Inventory</span>
+          </button>
+          */}
+          <button
+            onClick={() => handleNavigation('Brands')}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition ${
+              activeMenu === 'Brands' ? 'bg-white text-teal-800' : 'text-white hover:bg-teal-700'
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+            </svg>
+            <span className="text-sm font-medium">Brands</span>
           </button>
         </div>
 
@@ -140,7 +185,7 @@ function Sidebar({ activeMenu, quotesCount = 0, leadsCount = 0, remindersCount =
             </div>
             <span className={`text-xs px-2 py-0.5 rounded-full ${
               activeMenu === 'Registrations' ? 'bg-teal-100' : 'bg-teal-700'
-            }`}>0</span>
+            }`}>{registrationsCount}</span>
           </button>
           <button 
             onClick={() => handleNavigation('Installations')}
@@ -156,7 +201,7 @@ function Sidebar({ activeMenu, quotesCount = 0, leadsCount = 0, remindersCount =
             </div>
             <span className={`text-xs px-2 py-0.5 rounded-full ${
               activeMenu === 'Installations' ? 'bg-teal-100' : 'bg-teal-700'
-            }`}>0</span>
+            }`}>{installationsCount}</span>
           </button>
           <button 
             onClick={() => handleNavigation('Reminders')}

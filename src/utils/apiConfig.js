@@ -32,7 +32,14 @@ export const API_ENDPOINTS = {
   PRODUCTS_DELETE: '/api/products',
   PRODUCTS_CATEGORIES: '/api/products/categories',
   PRODUCTS_GROUPED: '/api/products/grouped',
-  
+
+  // Brands
+  BRANDS: '/api/brands',
+  BRANDS_CREATE: '/api/brands/create-brand',
+  BRANDS_DELETE: '/api/brands',
+  BRANDS_CATEGORIES: '/api/brands/categories',
+  BRANDS_GROUPED: '/api/brands/grouped',
+
   // Installations
   INSTALLATIONS: '/api/installations'
 };
@@ -53,9 +60,48 @@ export const buildApiUrl = (endpoint) => {
 // Common axios configuration
 export const getAuthHeaders = (token = null) => {
   const authToken = token || localStorage.getItem('token');
-  return {
-    'Authorization': `Bearer ${authToken}`,
+  const headers = {
     'Content-Type': 'application/json',
     'accept': 'application/json'
   };
+  // Only attach the Authorization header when a real token exists,
+  // otherwise we would send the literal string "Bearer null".
+  if (authToken) {
+    headers['Authorization'] = `Bearer ${authToken}`;
+  }
+  return headers;
+};
+
+// Safely read and parse the stored user object from localStorage.
+// Returns null if it is missing or corrupted instead of throwing a
+// SyntaxError that would crash the component tree.
+export const getStoredUser = () => {
+  const raw = localStorage.getItem('user');
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch (err) {
+    console.warn('Corrupted user data in storage, clearing.', err);
+    localStorage.removeItem('user');
+    return null;
+  }
+};
+
+// Safely parse any JSON string from storage, returning a fallback on failure.
+export const safeJsonParse = (raw, fallback = null) => {
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return fallback;
+  }
+};
+
+// Detect authentication failures from an axios error or fetch Response.
+export const isAuthError = (statusOrError) => {
+  const status =
+    typeof statusOrError === 'number'
+      ? statusOrError
+      : statusOrError?.response?.status ?? statusOrError?.status;
+  return status === 401 || status === 403;
 };

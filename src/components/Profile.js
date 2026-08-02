@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
+import { getStoredUser } from '../utils/apiConfig';
 
 const Profile = () => {
   const [user, setUser] = useState(null);
@@ -15,7 +16,13 @@ const Profile = () => {
       return;
     }
 
-    setUser(JSON.parse(userData));
+    const parsedUser = getStoredUser();
+    if (!parsedUser) {
+      localStorage.clear();
+      navigate('/');
+      return;
+    }
+    setUser(parsedUser);
   }, [navigate]);
 
   if (!user) return null;

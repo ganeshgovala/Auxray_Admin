@@ -1,35 +1,62 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { useSelector, useDispatch } from 'react-redux';
 import Sidebar from './Sidebar';
-import { getCachedDashboardData, setCachedDashboardData, clearDashboardCache } from '../utils/cacheManager';
-import { buildApiUrl, API_ENDPOINTS } from '../utils/apiConfig';
+import { getStoredUser } from '../utils/apiConfig';
+import {
+  fetchLeads,
+  fetchQuotes,
+  fetchReminders,
+  fetchRegistrations,
+  fetchTeamMembers,
+} from '../store/slices';
 
 const Dashboard = () => {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [leads, setLeads] = useState([]);
-  const [quotes, setQuotes] = useState([]);
-  const [reminders, setReminders] = useState([]);
-  const [registrations, setRegistrations] = useState([]);
-  const [teamMembers, setTeamMembers] = useState([]);
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+
+  // Shared data from the Redux store.
+  const leads = useSelector((s) => s.leads.items);
+  const quotes = useSelector((s) => s.quotes.items);
+  const reminders = useSelector((s) => s.reminders.items);
+  const registrations = useSelector((s) => s.registrations.items);
+  const teamMembers = useSelector((s) => s.teamMembers.items);
+
+  // Loading while any needed slice is fetching for the first time.
+  const loading = useSelector(
+    (s) =>
+      (s.leads.status === 'loading' && s.leads.items.length === 0) ||
+      (s.quotes.status === 'loading' && s.quotes.items.length === 0) ||
+      (s.reminders.status === 'loading' && s.reminders.items.length === 0) ||
+      (s.registrations.status === 'loading' && s.registrations.items.length === 0) ||
+      (s.teamMembers.status === 'loading' && s.teamMembers.items.length === 0)
+  );
+
+  const loadDashboardData = (force = false) => {
+    const opts = force ? { force: true } : undefined;
+    dispatch(fetchLeads(opts));
+    dispatch(fetchQuotes(opts));
+    dispatch(fetchReminders(opts));
+    dispatch(fetchRegistrations(opts));
+    dispatch(fetchTeamMembers(opts));
+  };
 
   // Initial auth + dashboard bootstrap on mount.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    // Check if user is authenticated
     const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
-
-    if (!token || !userData) {
+    if (!token) {
       navigate('/');
       return;
     }
 
-    const parsedUser = JSON.parse(userData);
-    
+    const parsedUser = getStoredUser();
+    if (!parsedUser) {
+      localStorage.clear();
+      navigate('/');
+      return;
+    }
+
     // Verify role is 4 (Child Admin) or 5 (Super Admin)
     if (parsedUser.role !== 4 && parsedUser.role !== 5) {
       localStorage.clear();
@@ -38,77 +65,9 @@ const Dashboard = () => {
     }
 
     setUser(parsedUser);
-    loadDashboardData(token);
+    loadDashboardData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
-
-  const loadDashboardData = async (token) => {
-    // Check if we have cached data
-    const cachedData = getCachedDashboardData();
-
-    if (cachedData) {
-      // Use cached data
-      setLeads(cachedData.leads || []);
-      setQuotes(cachedData.quotes || []);
-      setReminders(cachedData.reminders || []);
-      setRegistrations(cachedData.registrations || []);
-      setTeamMembers(cachedData.teamMembers || []);
-      setLoading(false);
-      return;
-    }
-
-    // Fetch fresh data
-    await fetchAllData(token);
-  };
-
-  const fetchAllData = async (token) => {
-    try {
-      const [leadsRes, quotesRes, remindersRes, registrationsRes, teamRes] = await Promise.all([
-        axios.get(buildApiUrl(API_ENDPOINTS.LEADS_ALL), {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        axios.get(buildApiUrl(API_ENDPOINTS.QUOTES_ALL), {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        axios.get(buildApiUrl(API_ENDPOINTS.LEADS_UPCOMING_REMINDERS), {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        axios.get(buildApiUrl(API_ENDPOINTS.REGISTRATIONS_PENDING), {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        axios.get(buildApiUrl(API_ENDPOINTS.USERS_BY_ROLE), {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-      ]);
-
-      const leadsData = leadsRes.data.leads || [];
-      const quotesData = quotesRes.data.quotes || [];
-      const remindersData = remindersRes.data.leads || [];
-      const regData = registrationsRes.data;
-      const registrationsData = Array.isArray(regData) ? regData : (regData.registrations || []);
-      const teamMembersData = teamRes.data.users || [];
-
-      setLeads(leadsData);
-      setQuotes(quotesData);
-      setReminders(remindersData);
-      setRegistrations(registrationsData);
-      setTeamMembers(teamMembersData);
-
-      // Cache the data
-      const dataToCache = {
-        leads: leadsData,
-        quotes: quotesData,
-        reminders: remindersData,
-        registrations: registrationsData,
-        teamMembers: teamMembersData
-      };
-      setCachedDashboardData(dataToCache);
-
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-      setLoading(false);
-    }
-  };
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -177,13 +136,8 @@ const Dashboard = () => {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Sidebar 
-        activeMenu="Dashboard" 
-        quotesCount={stats.pendingQuotes}
-        leadsCount={stats.openLeads}
-        remindersCount={stats.totalReminders}
-      />
-      
+      <Sidebar activeMenu="Dashboard" />
+
       {loading ? (
         <div className="flex-1 ml-64 p-8 bg-gray-50 flex items-center justify-center">
           <div className="text-center">
@@ -200,12 +154,7 @@ const Dashboard = () => {
             <p className="text-gray-500">Welcome back, {user?.name || 'Admin'}! Here's your business overview.</p>
           </div>
           <button
-            onClick={() => {
-              clearDashboardCache();
-              setLoading(true);
-              const token = localStorage.getItem('token');
-              fetchAllData(token);
-            }}
+            onClick={() => loadDashboardData(true)}
             className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition font-medium"
             disabled={loading}
           >

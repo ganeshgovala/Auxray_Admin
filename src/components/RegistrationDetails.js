@@ -1,48 +1,29 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import axios from 'axios';
+import { useSelector, useDispatch } from 'react-redux';
 import Sidebar from './Sidebar';
-import { buildApiUrl, API_ENDPOINTS } from '../utils/apiConfig';
+import { fetchRegistrations } from '../store/slices';
 
 const RegistrationDetails = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const { registrationId } = useParams();
-  const [registration, setRegistration] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // Derive the registration from the shared store instead of re-fetching the list.
+  const registrations = useSelector((s) => s.registrations.items);
+  const registrationsStatus = useSelector((s) => s.registrations.status);
+  const registration =
+    registrations.find((r) => r.registration?._id === registrationId) || null;
+  const loading = registrationsStatus === 'loading' && registrations.length === 0;
   const [activeTab, setActiveTab] = useState('overview');
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    const userData = localStorage.getItem('user');
-    if (!userData) {
+    if (!localStorage.getItem('user')) {
       navigate('/');
-    } else {
-      fetchRegistrationDetails();
+      return;
     }
+    dispatch(fetchRegistrations());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate, registrationId]);
-
-  const fetchRegistrationDetails = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(
-        buildApiUrl(API_ENDPOINTS.REGISTRATIONS_PENDING),
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'accept': 'application/json'
-          }
-        }
-      );
-      const foundRegistration = response.data.data?.find(r => r.registration?._id === registrationId);
-      console.log('Registration Details:', foundRegistration);
-      setRegistration(foundRegistration);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching registration details:', error);
-      setLoading(false);
-    }
-  };
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';

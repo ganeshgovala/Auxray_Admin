@@ -107,7 +107,6 @@ module.exports = async (req, res) => {
     });
 
     res.status(upstream.status);
-    res.setHeader('x-proxy-target', targetUrl);
 
     upstream.headers.forEach((value, key) => {
       if (!HOP_BY_HOP_HEADERS.has(key.toLowerCase())) {

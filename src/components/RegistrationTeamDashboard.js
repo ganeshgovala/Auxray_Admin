@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import logo from '../assets/images/logo.png';
-import { buildApiUrl, API_ENDPOINTS } from '../utils/apiConfig';
+import { buildApiUrl, API_ENDPOINTS, getStoredUser } from '../utils/apiConfig';
 
 const RegistrationTeamDashboard = () => {
   const navigate = useNavigate();
@@ -35,13 +35,10 @@ const RegistrationTeamDashboard = () => {
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setRegistrations(prevRegs => {
-        const updated = [...prevRegs];
-        if (updated[absoluteIndex]) {
-          updated[absoluteIndex]._updatingStatus = false;
-        }
-        return updated;
-      });
+      // Re-fetch the active registrations so a just-completed one drops off the
+      // list and the stats recompute — without waiting for a manual page refresh.
+      const currentUser = user || getStoredUser();
+      await fetchAssignedRegistrations(currentUser?.id || currentUser?._id, token);
     } catch (err) {
       setRegistrations(prevRegs => {
         const updated = [...prevRegs];
@@ -61,8 +58,13 @@ const RegistrationTeamDashboard = () => {
       return;
     }
 
-    const parsedUser = JSON.parse(userData);
-    
+    const parsedUser = getStoredUser();
+    if (!parsedUser) {
+      localStorage.clear();
+      navigate('/');
+      return;
+    }
+
     // Verify role is 3 (Registration Team)
     if (parsedUser.role !== 3) {
       localStorage.clear();
@@ -275,9 +277,8 @@ const RegistrationTeamDashboard = () => {
                 <button
                   onClick={() => {
                     const token = localStorage.getItem('token');
-                    const userData = localStorage.getItem('user');
-                    if (token && userData) {
-                      const parsedUser = JSON.parse(userData);
+                    const parsedUser = getStoredUser();
+                    if (token && parsedUser) {
                       fetchAssignedRegistrations(parsedUser.id || parsedUser._id, token);
                     }
                   }}

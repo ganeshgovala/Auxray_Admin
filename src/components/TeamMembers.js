@@ -2,16 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Sidebar from './Sidebar';
-import { getCachedTeamMembersData, setCachedTeamMembersData, clearTeamMembersCache } from '../utils/cacheManager';
-import { buildApiUrl, API_ENDPOINTS } from '../utils/apiConfig';
+import { useSelector, useDispatch } from 'react-redux';
+import { buildApiUrl, API_ENDPOINTS, getStoredUser } from '../utils/apiConfig';
+import { fetchTeamMembers as fetchTeamMembersThunk } from '../store/slices';
 
 const TeamMembers = () => {
   const [user, setUser] = useState(null);
   const [activeFilter, setActiveFilter] = useState('ALL PERSONALLS');
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [teamMembers, setTeamMembers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch();
+  const rawMembers = useSelector((s) => s.teamMembers.items);
+  const loading = useSelector(
+    (s) => s.teamMembers.status === 'loading' && s.teamMembers.items.length === 0
+  );
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -44,6 +48,18 @@ const TeamMembers = () => {
     return roleMap[role] || 'UNKNOWN';
   };
 
+  // Display shape derived from the raw users held in the store.
+  const teamMembers = rawMembers.map((member) => ({
+    id: member._id,
+    name: member.name,
+    email: member.email,
+    department: getRoleName(member.role),
+    mobile: member.mobileNumber || 'N/A',
+    role: member.role,
+    isActive: member.isActive,
+    lastLoginAt: member.lastLoginAt,
+  }));
+
   const getRoleNumber = (roleName) => {
     const roleMap = {
       'SALES EXECUTIVE': 0,
@@ -65,56 +81,17 @@ const TeamMembers = () => {
       return;
     }
 
-    setUser(JSON.parse(userData));
-    loadTeamMembers(token);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigate]);
-
-  const loadTeamMembers = (token) => {
-    // Check if we have cached data
-    const cachedData = getCachedTeamMembersData();
-
-    if (cachedData) {
-      setTeamMembers(cachedData);
-      setLoading(false);
+    const parsedUser = getStoredUser();
+    if (!parsedUser) {
+      localStorage.clear();
+      navigate('/');
       return;
     }
 
-    // Fetch fresh data
-    fetchTeamMembers(token);
-  };
-
-  const fetchTeamMembers = async (token) => {
-    try {
-      const response = await axios.get(
-        buildApiUrl(API_ENDPOINTS.USERS_BY_ROLE),
-        {
-          headers: {
-            'accept': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-      
-      const formattedMembers = response.data.users.map(member => ({
-        id: member._id,
-        name: member.name,
-        email: member.email,
-        department: getRoleName(member.role),
-        mobile: member.mobileNumber || 'N/A',
-        role: member.role,
-        isActive: member.isActive,
-        lastLoginAt: member.lastLoginAt
-      }));
-      
-      setTeamMembers(formattedMembers);
-      setCachedTeamMembersData(formattedMembers);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching team members:', error);
-      setLoading(false);
-    }
-  };
+    setUser(parsedUser);
+    dispatch(fetchTeamMembersThunk());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigate]);
 
   const handleInputChange = (e) => {
     setFormData({
@@ -154,8 +131,7 @@ const TeamMembers = () => {
       setSuccess('Team member created successfully!');
       
       // Clear cache and refresh team members list
-      clearTeamMembersCache();
-      fetchTeamMembers(token);
+      dispatch(fetchTeamMembersThunk({ force: true }));
       
       // Reset form and close modal after a short delay
       setTimeout(() => {
@@ -214,8 +190,7 @@ const TeamMembers = () => {
       );
 
       // Clear cache and refresh team members list
-      clearTeamMembersCache();
-      fetchTeamMembers(token);
+      dispatch(fetchTeamMembersThunk({ force: true }));
       setShowDeleteModal(false);
       setMemberToDelete(null);
     } catch (error) {
@@ -275,8 +250,7 @@ const TeamMembers = () => {
       setSuccess('Team member updated successfully!');
       setTimeout(() => {
         handleModalClose();
-        clearTeamMembersCache();
-        fetchTeamMembers(token);
+        dispatch(fetchTeamMembersThunk({ force: true }));
       }, 1500);
     } catch (error) {
       console.error('Error updating team member:', error);
@@ -295,8 +269,8 @@ const TeamMembers = () => {
 
   const filteredMembers = teamMembers.filter(member => {
     const matchesFilter = activeFilter === 'ALL PERSONALLS' || member.department === activeFilter;
-    const matchesSearch = member.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         member.email.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (member.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (member.email || '').toLowerCase().includes(searchQuery.toLowerCase());
     return matchesFilter && matchesSearch;
   });
 

@@ -1,16 +1,20 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
 import axios from 'axios';
 import Sidebar from './Sidebar';
-import { clearDashboardCache, clearQuotesCache } from '../utils/cacheManager';
-import { buildApiUrl, API_ENDPOINTS } from '../utils/apiConfig';
+import { buildApiUrl } from '../utils/apiConfig';
+import { fetchQuotes } from '../store/slices';
 
 const QuoteDetails = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const { quoteId } = useParams();
-  const [quote, setQuote] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // Derive the quote from the shared store instead of re-fetching the whole list.
+  const quotes = useSelector((s) => s.quotes.items);
+  const quotesStatus = useSelector((s) => s.quotes.status);
+  const quote = quotes.find((q) => q._id === quoteId) || null;
+  const loading = quotesStatus === 'loading' && quotes.length === 0;
   const [activeTab, setActiveTab] = useState('overview');
   const [showActionModal, setShowActionModal] = useState(false);
   const [actionType, setActionType] = useState('');
@@ -18,32 +22,14 @@ const QuoteDetails = () => {
   const [modifyNotes, setModifyNotes] = useState('');
   const [processing, setProcessing] = useState(false);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    const userData = localStorage.getItem('user');
-    if (!userData) {
+    if (!localStorage.getItem('user')) {
       navigate('/');
-    } else {
-      fetchQuoteDetails();
+      return;
     }
+    dispatch(fetchQuotes());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate, quoteId]);
-
-  const fetchQuoteDetails = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(buildApiUrl(API_ENDPOINTS.QUOTES_ALL), {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      const foundQuote = response.data.quotes.find(q => q._id === quoteId);
-      setQuote(foundQuote);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching quote details:', error);
-      setLoading(false);
-    }
-  };
 
   const handleQuoteAction = async () => {
     if (actionType === 'reject' && !rejectionReason.trim()) {
@@ -80,13 +66,9 @@ const QuoteDetails = () => {
         }
       });
 
-      // Clear dashboard and quotes cache since quote data has changed
-      clearDashboardCache();
-      clearQuotesCache();
-
       alert(`Quote ${actionType === 'approve' ? 'approved' : actionType === 'reject' ? 'rejected' : 'sent for modification'} successfully!`);
       setShowActionModal(false);
-      fetchQuoteDetails();
+      dispatch(fetchQuotes({ force: true }));
     } catch (error) {
       console.error(`Error ${actionType === 'approve' ? 'approving' : actionType === 'reject' ? 'rejecting' : 'modifying'} quote:`, error);
       alert(`Failed to ${actionType} quote. Please try again.`);
@@ -124,6 +106,17 @@ const QuoteDetails = () => {
     if (!costString) return 0;
     // Remove ₹ symbol and any commas, then parse as number
     return parseFloat(costString.replace(/[₹,]/g, '').trim()) || 0;
+  };
+
+  // Normalise a possibly Google-Drive logo link into a directly renderable URL.
+  const resolveLogo = (logo) => {
+    if (!logo) return '';
+    if (logo.includes('drive.google.com')) {
+      const fileId =
+        logo.match(/\/d\/(.+?)\/|id=(.+)/)?.[1] || logo.match(/id=(.+)/)?.[1];
+      if (fileId) return `https://drive.google.com/uc?export=view&id=${fileId}`;
+    }
+    return logo;
   };
 
   if (loading) {
@@ -232,6 +225,7 @@ const QuoteDetails = () => {
             >
               Overview
             </button>
+            {/* Products tab hidden
             <button
               onClick={() => setActiveTab('products')}
               className={`pb-3 px-1 font-medium transition border-b-2 ${
@@ -242,6 +236,7 @@ const QuoteDetails = () => {
             >
               Products
             </button>
+            */}
             <button
               onClick={() => setActiveTab('specifications')}
               className={`pb-3 px-1 font-medium transition border-b-2 ${
@@ -381,10 +376,12 @@ const QuoteDetails = () => {
                       <div className="text-xs text-blue-600 font-semibold uppercase mb-2">Number of Floors</div>
                       <div className="text-3xl font-bold text-blue-700">{quote.noOfFloors}</div>
                     </div>
+                    {/* Products stat hidden
                     <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-lg p-4">
                       <div className="text-xs text-green-600 font-semibold uppercase mb-2">Products</div>
                       <div className="text-3xl font-bold text-green-700">{quote.products.length}</div>
                     </div>
+                    */}
                   </div>
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -467,6 +464,7 @@ const QuoteDetails = () => {
             </div>
           )}
 
+          {/* Products tab content hidden
           {activeTab === 'products' && (
             <div className="max-w-5xl mx-auto">
               <div className="bg-white rounded-xl shadow-sm p-8">
@@ -519,6 +517,7 @@ const QuoteDetails = () => {
               </div>
             </div>
           )}
+          */}
 
           {activeTab === 'specifications' && (
             <div className="max-w-4xl mx-auto">
@@ -616,6 +615,50 @@ const QuoteDetails = () => {
                       </div>
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* Selected Brands */}
+              <div className="bg-white rounded-xl shadow-sm p-8 mt-6">
+                <h3 className="text-2xl font-bold text-gray-800 mb-8 flex items-center gap-3">
+                  <div className="w-12 h-12 bg-teal-600 rounded-xl flex items-center justify-center">
+                    <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                    </svg>
+                  </div>
+                  Selected Brands
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {[
+                    { label: 'Panel Brand', brand: quote.panel_brand },
+                    { label: 'Inverter Brand', brand: quote.invertor_brand || quote.inverter_brand },
+                    { label: 'Cable Brand', brand: quote.cables_brand },
+                  ].map(({ label, brand }) => {
+                    const logoUrl = resolveLogo(brand?.logo);
+                    return (
+                      <div key={label} className="p-6 bg-gray-50 rounded-xl border border-gray-200 flex items-center gap-4">
+                        {logoUrl ? (
+                          <img
+                            src={logoUrl}
+                            alt={brand?.company_name || label}
+                            className="w-14 h-14 rounded-lg object-contain bg-white border border-gray-100 flex-shrink-0"
+                            onError={(e) => { e.target.style.display = 'none'; }}
+                          />
+                        ) : (
+                          <div className="w-14 h-14 rounded-lg bg-teal-100 flex items-center justify-center text-teal-700 text-xl font-bold flex-shrink-0">
+                            {brand?.company_name?.charAt(0)?.toUpperCase() || '—'}
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="text-xs text-gray-500 font-semibold uppercase mb-1">{label}</p>
+                          <p className="text-base font-bold text-gray-800 truncate">
+                            {brand?.company_name || 'Not selected'}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>

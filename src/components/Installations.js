@@ -1,14 +1,17 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
 import Sidebar from './Sidebar';
-import { clearInstallationsCache } from '../utils/cacheManager';
 import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../utils/apiConfig';
+import { fetchInstallations as fetchInstallationsThunk } from '../store/slices';
 
 function Installations() {
-  const [installations, setInstallations] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch();
+  const installations = useSelector((s) => s.installations.items);
+  const loading = useSelector(
+    (s) => s.installations.status === 'loading' && s.installations.items.length === 0
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [filterStatus, setFilterStatus] = useState('all');
@@ -21,7 +24,6 @@ function Installations() {
   const [quoteLoading, setQuoteLoading] = useState(false);
   const navigate = useNavigate();
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const token = localStorage.getItem('token');
     const user = localStorage.getItem('user');
@@ -43,44 +45,10 @@ function Installations() {
       return;
     }
     
-    loadInstallations();
+    dispatch(fetchInstallationsThunk());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
-  const loadInstallations = () => {
-    const cachedData = localStorage.getItem('installations');
-    
-    if (cachedData) {
-      const parsed = JSON.parse(cachedData);
-      setInstallations(parsed.data || []);
-    }
-    
-    fetchInstallations();
-  };
-
-  const fetchInstallations = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      
-      const response = await axios.get(
-        buildApiUrl(API_ENDPOINTS.LEADS_INSTALLATIONS),
-        {
-          headers: getAuthHeaders(token)
-        }
-      );
-      
-      setInstallations(response.data.data || []);
-      localStorage.setItem('installations', JSON.stringify(response.data));
-    } catch (error) {
-      console.error('Error fetching installations:', error);
-      if (error.response) {
-        console.error('API Error Response:', error.response.data);
-        console.error('API Error Status:', error.response.status);
-      }
-      setInstallations([]);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -151,10 +119,9 @@ function Installations() {
   }, [filterStatus, searchQuery, sortBy]);
 
   const handleRefresh = async () => {
-    clearInstallationsCache();
     setRefreshing(true);
     try {
-      await fetchInstallations();
+      await dispatch(fetchInstallationsThunk({ force: true }));
     } finally {
       setRefreshing(false);
     }
@@ -225,7 +192,7 @@ function Installations() {
       );
       setShowApproveModal(false);
       setApproveNote('');
-      await fetchInstallations();
+      await dispatch(fetchInstallationsThunk({ force: true }));
     } catch (error) {
       console.error('Error approving installation:', error);
     } finally {
@@ -245,7 +212,7 @@ function Installations() {
       );
       setShowCloseLeadModal(false);
       setCloseLeadNote('');
-      await fetchInstallations();
+      await dispatch(fetchInstallationsThunk({ force: true }));
     } catch (error) {
       console.error('Error closing lead:', error);
     } finally {
@@ -513,7 +480,8 @@ function Installations() {
                     </div>
                   )}
 
-                  {/* Products from Quote */}
+                  {/* Products from Quote — commented out (disabled) */}
+                  {false && (
                   <div className="bg-white rounded-xl border-2 border-teal-200 shadow-sm overflow-hidden">
                     <div className="px-5 py-4 bg-gradient-to-r from-teal-50 to-teal-100/60 border-b border-teal-200 flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -606,6 +574,7 @@ function Installations() {
                       </div>
                     )}
                   </div>
+                  )}
 
                 </div>
               ) : (
