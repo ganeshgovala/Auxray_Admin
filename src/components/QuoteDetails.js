@@ -102,6 +102,8 @@ const QuoteDetails = () => {
     }).format(amount);
   };
 
+  // Used by the (currently commented-out) Products tab; kept for when it's re-enabled.
+  // eslint-disable-next-line no-unused-vars
   const parseCost = (costString) => {
     if (!costString) return 0;
     // Remove ₹ symbol and any commas, then parse as number
